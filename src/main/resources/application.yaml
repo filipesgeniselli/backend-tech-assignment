@@ -6,4 +6,9 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
+tier-limits:
+  free: 3
+  basic: 10
+  premium: 20
+  business: 100

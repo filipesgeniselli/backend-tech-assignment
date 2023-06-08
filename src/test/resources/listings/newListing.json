@@ -1,0 +1,9 @@
+{
+  "vehicle": "2021 Tesla Model Y",
+  "condition": "USED",
+  "price": 47399.99,
+  "color": "white",
+  "transmission": "AUTOMATIC",
+  "mileage": 10500,
+  "fuelType": "ELECTRIC"
+}

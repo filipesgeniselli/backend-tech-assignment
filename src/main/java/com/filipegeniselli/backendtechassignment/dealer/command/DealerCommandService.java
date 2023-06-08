@@ -4,6 +4,8 @@ import java.util.UUID;
 
 public interface DealerCommandService {
 
-    UUID handle(CreateNewDealer command);
+    UUID handle(CreateUpdateDealer command);
+
+    void handle(UUID dealerId, CreateUpdateDealer command);
 
 }

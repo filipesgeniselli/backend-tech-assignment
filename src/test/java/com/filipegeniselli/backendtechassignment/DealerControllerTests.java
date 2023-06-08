@@ -4,22 +4,45 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.annotation.DirtiesContext;
 
-import java.io.File;
-import java.io.InputStream;
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class DealerControllerTests {
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+class DealerControllerTests extends ListingsBaseControllerTest {
 
     @LocalServerPort
     private int port;
+
+    public static Stream<Arguments> pagingParameters() {
+        return Stream.of(
+                Arguments.of(0, 10, 10),
+                Arguments.of(2, 10, 10),
+                Arguments.of(3, 5, 5),
+                Arguments.of(4, 7, 2),
+                Arguments.of(0, 30, 30),
+                Arguments.of(1, 30, 0)
+        );
+    }
+
+    public static Stream<Arguments> pagingFilterParameters() {
+        return Stream.of(
+                Arguments.of("DEALER", 0, 10, 10, 30),
+                Arguments.of("dealer", 2, 10, 10, 30),
+                Arguments.of("dealer 1", 1, 5, 5, 11),
+                Arguments.of("dealer 1", 2, 5, 1, 11),
+                Arguments.of("Dealer 20", 0, 7, 1, 1)
+        );
+    }
 
     @BeforeEach
     public void configureRestAssured(){
@@ -38,27 +61,47 @@ class DealerControllerTests {
                 .body("pageInfo.total", equalTo(0));
     }
 
+    @ParameterizedTest
+    @MethodSource("pagingFilterParameters")
+    void getDealerListFiltering_shouldReturnOkWithCorrectPaging(String filter,
+                                                                int page,
+                                                                int pageSize,
+                                                                int expectedPageLength,
+                                                                int expectedTotal) {
+        for(int i = 0; i < 30; i++) {
+            createDealer("Dealer %s".formatted(i));
+        }
+
+        given()
+                .get("/dealer?name=%s&page=%s&pageSize=%s".formatted(filter, page, pageSize))
+                .then()
+                .statusCode(200)
+                .body("pageInfo.pageSize", equalTo(pageSize))
+                .body("pageInfo.page", equalTo(page))
+                .body("pageInfo.total", equalTo(expectedTotal))
+                .body("data.size()", is(expectedPageLength));
+    }
+
+    @ParameterizedTest
+    @MethodSource("pagingParameters")
+    void getDealerList_shouldReturnOkWithCorrectPaging(int page, int pageSize, int expectedPageLength) {
+        for(int i = 0; i < 30; i++) {
+            createDealer("Dealer %s".formatted(i));
+        }
+
+        given()
+                .get("/dealer?page=%s&pageSize=%s".formatted(page, pageSize))
+                .then()
+                .statusCode(200)
+                .body("pageInfo.pageSize", equalTo(pageSize))
+                .body("pageInfo.page", equalTo(page))
+                .body("pageInfo.total", equalTo(30))
+                .body("data.size()", is(expectedPageLength));
+    }
 
     @Test
     void getDealer_ShouldReturnOk() {
-        //File createDealerBody = new File("/src/test/resources/dealers/basicDealerRemoveOldListings.json");
-        InputStream createDealerBody = getClass().getResourceAsStream("/dealers/basicDealerRemoveOldListings.json");
-        String location = given()
-                .body(createDealerBody)
-                .contentType(ContentType.JSON)
-                .post("/dealer")
-                .then()
-                .assertThat()
-                .statusCode(201)
-                .header("Location", notNullValue())
-                .extract()
-                .header("Location");
-
-        String [] locationArray = location.split("/");
-        location = Arrays.stream(locationArray)
-                .skip(Math.max(0, locationArray.length - 2))
-                .map(Object::toString)
-                .collect(Collectors.joining("/"));
+        String location = createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json"));
 
         given()
                 .get(location)
@@ -80,6 +123,47 @@ class DealerControllerTests {
                 .statusCode(404)
                 .body("status", equalTo(404))
                 .body("message", equalTo("Could not find Dealer with the requested Id"));
+    }
+
+    @Test
+    void getDealerWithNonUuid_ShouldReturnBadRequest() {
+        given()
+                .get("/dealer/1")
+                .then()
+                .assertThat()
+                .statusCode(400);
+    }
+
+    @Test
+    void updateDealer_ShouldReturnAccepted() {
+        String location = createDealer(getDealerResourceAsStream("businessDealerNotRemoveOldListings.json"));
+        given()
+                .get(location)
+                .then()
+                .assertThat()
+                .statusCode(200)
+                .body("name", equalTo("Test Business dealer"))
+                .body("tier", equalTo("BUSINESS"))
+                .body("allowRemovingOldListings", equalTo(false))
+                .body("url", endsWithIgnoringCase(location));
+
+        given()
+                .body(getDealerResourceAsStream("businessDealerRemoveOldListings.json"))
+                .contentType(ContentType.JSON)
+                .put(location)
+                .then()
+                .assertThat()
+                .statusCode(202);
+
+        given()
+                .get(location)
+                .then()
+                .assertThat()
+                .statusCode(200)
+                .body("name", equalTo("Test Business dealer"))
+                .body("tier", equalTo("BUSINESS"))
+                .body("allowRemovingOldListings", equalTo(true))
+                .body("url", endsWithIgnoringCase(location));
     }
 
 }

@@ -1,7 +1,7 @@
 package com.filipegeniselli.backendtechassignment.dealer;
 
 import com.filipegeniselli.backendtechassignment.PagedResult;
-import com.filipegeniselli.backendtechassignment.dealer.command.CreateNewDealer;
+import com.filipegeniselli.backendtechassignment.dealer.command.CreateUpdateDealer;
 import com.filipegeniselli.backendtechassignment.dealer.command.DealerCommandService;
 import com.filipegeniselli.backendtechassignment.dealer.query.DealerQueryService;
 import com.filipegeniselli.backendtechassignment.dealer.query.FindAllWithFilters;
@@ -29,7 +29,7 @@ public class DealerController {
     }
 
     @GetMapping
-    public PagedResult<DealerDto> getDealer(@RequestParam(value="name", required = false) String name,
+    public PagedResult<DealerDto> getDealers(@RequestParam(value="name", required = false) String name,
                                             @RequestParam(value="page", defaultValue = "0") int page,
                                             @RequestParam(value="pageSize", defaultValue = "20") int pageSize) {
         return dealerQueryService.handle(new FindAllWithFilters(name, PageRequest.of(page, pageSize)));
@@ -41,7 +41,7 @@ public class DealerController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> getDealer(@RequestBody CreateNewDealer dealerBody) {
+    public ResponseEntity<Void> createNewDealer(@RequestBody CreateUpdateDealer dealerBody) {
         UUID result = dealerCommandService.handle(dealerBody);
 
         return ResponseEntity
@@ -51,7 +51,13 @@ public class DealerController {
                         .buildAndExpand(result)
                         .toUri())
                 .build();
+    }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Void> updateDealer(@PathVariable("id") UUID dealerId,
+                                             @RequestBody CreateUpdateDealer dealerBody) {
+        dealerCommandService.handle(dealerId, dealerBody);
+        return ResponseEntity.accepted().build();
     }
 
 }
