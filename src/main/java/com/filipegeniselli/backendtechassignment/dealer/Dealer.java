@@ -1,10 +1,13 @@
 package com.filipegeniselli.backendtechassignment.dealer;
 
+import com.filipegeniselli.backendtechassignment.listings.Listing;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -19,6 +22,9 @@ public class Dealer {
     private DealerTierLimit tier;
 
     private Boolean allowRemovingOldListings;
+
+    @OneToMany(mappedBy = "dealer")
+    private Set<Listing> listings;
 
     public UUID getId() {
         return id;
@@ -52,6 +58,14 @@ public class Dealer {
         this.allowRemovingOldListings = allowRemovingOldListings;
     }
 
+    public Set<Listing> getListings() {
+        return listings;
+    }
+
+    public void setListings(Set<Listing> listings) {
+        this.listings = listings;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -70,6 +84,7 @@ public class Dealer {
         private String name;
         private DealerTierLimit tier;
         private Boolean allowRemovingOldListings;
+        private Set<Listing> listings;
 
         private DealerBuilder() {
         }
@@ -98,12 +113,18 @@ public class Dealer {
             return this;
         }
 
+        public DealerBuilder listings(Set<Listing> listings) {
+            this.listings = listings;
+            return this;
+        }
+
         public Dealer build() {
             Dealer dealer = new Dealer();
             dealer.setId(id);
             dealer.setName(name);
             dealer.setTier(tier);
             dealer.setAllowRemovingOldListings(allowRemovingOldListings);
+            dealer.setListings(listings);
             return dealer;
         }
     }

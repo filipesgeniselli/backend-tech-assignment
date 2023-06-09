@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -37,17 +38,6 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
         );
     }
 
-    public static Stream<Arguments> pagingParameters() {
-        return Stream.of(
-                Arguments.of(0, 10, 10),
-                Arguments.of(2, 10, 10),
-                Arguments.of(3, 5, 5),
-                Arguments.of(4, 7, 2),
-                Arguments.of(0, 30, 30),
-                Arguments.of(1, 30, 0)
-        );
-    }
-
     public static Stream<Arguments> pagingFilterParameters() {
         return Stream.of(
                 Arguments.of("DRAFT", 0, 10, 10, 11),
@@ -61,7 +51,7 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
 
     @Test
     void getListings_ShouldReturnEmptyList() {
-        String dealerId = createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json"));
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
 
         given()
                 .get("/%s/listings?status=%s".formatted(dealerId, "DRAFT"))
@@ -75,7 +65,7 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
 
     @Test
     void getListingsWithNoStatus_ShouldReturnBadRequest() {
-        String dealerId = createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json"));
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
 
         given()
                 .get("/%s/listings".formatted(dealerId))
@@ -91,7 +81,7 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
                                                                 int pageSize,
                                                                 int expectedPageLength,
                                                                 int expectedTotal) {
-        String dealerId = createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json"));
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
         List<String> listingsList = new ArrayList<>();
         for(int i = 0; i < 30; i++) {
             listingsList.add(createListing(dealerId, getListingsResourceAsStream("newListing.json")));
@@ -132,7 +122,18 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
                 .then()
                 .assertThat()
                 .statusCode(200)
-                .body("status", equalTo("DRAFT"));
+                .body("vehicle", equalTo("2021 Tesla Model Y"))
+                .body("condition", equalTo("USED"))
+                .body("price", equalTo(47399.99F))
+                .body("color", equalTo("white"))
+                .body("transmission", equalTo("AUTOMATIC"))
+                .body("mileage", equalTo(10500))
+                .body("fuelType", equalTo("ELECTRIC"))
+                .body("status", equalTo("DRAFT"))
+                .body("createdAt", notNullValue())
+                .body("publishedAt", nullValue())
+                .body("removedAt", nullValue())
+                .body("url", endsWith(listingLocation));
     }
 
     @Test
@@ -171,8 +172,8 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
     @MethodSource("exceedingLimitListConflict")
     void publishListingExceedingLimit_ShouldReturnConflict(String dealerResourceName,
                                                            DealerTierLimit tierLimit) {
-        String dealerId = extractDealerIdFromLocation(createDealer(dealerResourceName));
-        Set<String> listings = createAndPublishSetOfListings(dealerId, tierLimitConfiguration.getTierLimit(tierLimit));
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream(dealerResourceName)));
+        Map<String, LocalDateTime> listings = createAndPublishMapOfListings(dealerId, tierLimitConfiguration.getTierLimit(tierLimit));
 
         String listingLocation = createListing(dealerId, getListingsResourceAsStream("newListing.json"));
         given()
@@ -187,15 +188,20 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
                 .body("status", equalTo(409))
                 .body("message", equalTo("You've reached the limit of published listings"));
 
-        verifyListingStatus(listings.stream().findFirst().get(), "PUBLISHED");
+        verifyListingStatus(listings
+                        .entrySet()
+                        .stream()
+                        .sorted(Map.Entry.<String, LocalDateTime>comparingByValue())
+                        .findFirst().get().getKey(),
+                "PUBLISHED");
     }
 
     @ParameterizedTest
     @MethodSource("exceedingLimitListConflict")
     void publishListingExceedingLimit_ShouldReturnConflictAndAcceptedAfterRemoval(String dealerResourceName,
                                                                                   DealerTierLimit tierLimit) {
-        String dealerId = extractDealerIdFromLocation(createDealer(dealerResourceName));
-        Set<String> listings = createAndPublishSetOfListings(dealerId, tierLimitConfiguration.getTierLimit(tierLimit));
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream(dealerResourceName)));
+        Map<String, LocalDateTime> listings = createAndPublishMapOfListings(dealerId, tierLimitConfiguration.getTierLimit(tierLimit));
 
         String listingLocation = createListing(dealerId, getListingsResourceAsStream("newListing.json"));
         given()
@@ -216,12 +222,12 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
                     put("status", "REMOVED");
                 }})
                 .contentType(ContentType.JSON)
-                .patch(listings.stream().findFirst().get())
+                .patch(listings.keySet().stream().findFirst().get())
                 .then()
                 .assertThat()
                 .statusCode(202);
 
-        verifyListingStatus(listings.stream().findFirst().get(), "REMOVED");
+        verifyListingStatus(listings.keySet().stream().findFirst().get(), "REMOVED");
 
         given()
                 .body(new HashMap<String, Object>(){{
@@ -240,12 +246,136 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
     @MethodSource("exceedingLimitListAccepted")
     void publishListingExceedingLimit_ShouldReturnAccepted(String dealerResourceName,
                                                            DealerTierLimit tierLimit) {
-        String dealerId = extractDealerIdFromLocation(createDealer(dealerResourceName));
-        Set<String> listings = createAndPublishSetOfListings(dealerId, tierLimitConfiguration.getTierLimit(tierLimit));
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream(dealerResourceName)));
+        Map<String, LocalDateTime> listings = createAndPublishMapOfListings(dealerId, tierLimitConfiguration.getTierLimit(tierLimit));
         String listingLocation = createAndPublishListing(dealerId, "newListing.json");
 
         verifyListingStatus(listingLocation, "PUBLISHED");
-        verifyListingStatus(listings.stream().findFirst().get(), "REMOVED");
+        verifyListingStatus(listings
+                        .entrySet()
+                        .stream()
+                        .sorted(Map.Entry.<String, LocalDateTime>comparingByValue())
+                        .findFirst().get().getKey(),
+                "REMOVED");
+    }
+
+    @Test
+    void editDraftListing_ShouldReturnAccepted() {
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
+        String listingLocation = createListing(dealerId, getListingsResourceAsStream("newListing.json"));
+
+        given()
+                .body(getListingsResourceAsStream("editListing.json"))
+                .contentType(ContentType.JSON)
+                .put(listingLocation)
+                .then()
+                .assertThat()
+                .statusCode(202);
+
+        given()
+                .get(listingLocation)
+                .then()
+                .assertThat()
+                .statusCode(200)
+                .body("price", equalTo(54499.99F))
+                .body("color", equalTo("black"));
+    }
+
+    @Test
+    void editInvalidListing_ShouldReturnNotFound() {
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
+
+        given()
+                .body(getListingsResourceAsStream("editListing.json"))
+                .contentType(ContentType.JSON)
+                .put("/%s/listings/00000000-0000-0000-0000-000000000000".formatted(dealerId))
+                .then()
+                .assertThat()
+                .statusCode(404)
+                .body("message", equalTo("Couldn't find the Listing."));
+    }
+
+    @Test
+    void editPublishedListing_ShouldReturnBadRequest() {
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
+        String listingLocation = createAndPublishListing(dealerId, "newListing.json");
+
+        given()
+                .body(getListingsResourceAsStream("editListing.json"))
+                .contentType(ContentType.JSON)
+                .put(listingLocation)
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("message", equalTo("Operation not allowed - Only listings in Draft status can be edited."));
+    }
+
+    @Test
+    void editRemovedListing_ShouldReturnBadRequest() {
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
+        String listingLocation = createAndPublishListing(dealerId, "newListing.json");
+
+        given()
+                .body(new HashMap<String, Object>(){{
+                    put("status", "REMOVED");
+                }})
+                .contentType(ContentType.JSON)
+                .patch(listingLocation)
+                .then()
+                .assertThat()
+                .statusCode(202);
+
+        given()
+                .body(getListingsResourceAsStream("editListing.json"))
+                .contentType(ContentType.JSON)
+                .put(listingLocation)
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("message", equalTo("Operation not allowed - Only listings in Draft status can be edited."));
+    }
+
+    @Test
+    void publishInvalidListing_ShouldReturnNotFound(){
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
+
+        given()
+                .body(new HashMap<String, Object>(){{
+                    put("status", "PUBLISHED");
+                }})
+                .contentType(ContentType.JSON)
+                .patch("/%s/listings/00000000-0000-0000-0000-000000000000".formatted(dealerId))
+                .then()
+                .assertThat()
+                .statusCode(404)
+                .body("message", equalTo("Couldn't find the Listing."));
+    }
+
+    @Test
+    void publishRemovedListing_ShouldReturnBadRequest() {
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
+        String listingLocation = createListing(dealerId, getListingsResourceAsStream("newListing.json"));
+
+        given()
+                .body(new HashMap<String, Object>(){{
+                    put("status", "REMOVED");
+                }})
+                .contentType(ContentType.JSON)
+                .patch(listingLocation)
+                .then()
+                .assertThat()
+                .statusCode(202);
+
+        given()
+                .body(new HashMap<String, Object>(){{
+                    put("status", "PUBLISHED");
+                }})
+                .contentType(ContentType.JSON)
+                .patch(listingLocation)
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("message", equalTo("Operation not allowed - Removed listings cannot have status changes."));
     }
 
     private void verifyListingStatus(String listingLocation, String expectedStatus) {
@@ -257,10 +387,22 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
                 .body("status", equalTo(expectedStatus));
     }
 
-    public Set<String> createAndPublishSetOfListings(String dealerId, int amount) {
-        Set<String> listings = new HashSet<>();
+    public Map<String, LocalDateTime> createAndPublishMapOfListings(String dealerId, int amount) {
+        Map<String, LocalDateTime> listings = new HashMap<>();
         for (int i = 0; i < amount; i++) {
-            listings.add(createAndPublishListing(dealerId, "newListing.json"));
+            String location = createAndPublishListing(dealerId, "newListing.json");
+            String publishedDate = given()
+                    .get(location)
+                    .then()
+                    .assertThat()
+                    .statusCode(200)
+                    .body("publishedAt", notNullValue())
+                    .extract()
+                    .body()
+                    .jsonPath()
+                    .get("publishedAt");
+
+            listings.put(location, LocalDateTime.parse(publishedDate));
         }
 
         return listings;

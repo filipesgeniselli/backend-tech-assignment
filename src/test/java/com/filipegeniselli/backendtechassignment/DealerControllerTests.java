@@ -1,27 +1,17 @@
 package com.filipegeniselli.backendtechassignment;
 
-import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.annotation.DirtiesContext;
 
 import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class DealerControllerTests extends ListingsBaseControllerTest {
-
-    @LocalServerPort
-    private int port;
 
     public static Stream<Arguments> pagingParameters() {
         return Stream.of(
@@ -42,11 +32,6 @@ class DealerControllerTests extends ListingsBaseControllerTest {
                 Arguments.of("dealer 1", 2, 5, 1, 11),
                 Arguments.of("Dealer 20", 0, 7, 1, 1)
         );
-    }
-
-    @BeforeEach
-    public void configureRestAssured(){
-        RestAssured.port = port;
     }
 
     @Test

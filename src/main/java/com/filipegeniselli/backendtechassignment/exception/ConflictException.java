@@ -2,11 +2,11 @@ package com.filipegeniselli.backendtechassignment.exception;
 
 import java.io.Serializable;
 
-public class NotFoundException extends RuntimeException implements Serializable {
+public class ConflictException extends RuntimeException implements Serializable {
 
     public static final long serialVersionUID = 1L;
 
-    public NotFoundException(String message) {
+    public ConflictException(String message) {
         super(message);
     }
 }

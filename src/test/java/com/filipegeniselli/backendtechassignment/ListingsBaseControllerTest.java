@@ -61,7 +61,7 @@ public abstract class ListingsBaseControllerTest {
 
         String [] locationArray = location.split("/");
         return Arrays.stream(locationArray)
-                .skip(Math.max(0, locationArray.length - 2))
+                .skip(Math.max(0, locationArray.length - 3))
                 .map(Object::toString)
                 .collect(Collectors.joining("/"));
     }
