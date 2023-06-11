@@ -1,0 +1,32 @@
+services:
+  data:
+    ports:
+      - 5433:5432
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: Admin1234
+      POSTGRES_USER: listings
+      POSTGRES_PASSWORD: mysecret
+      POSTGRES_DB: listings
+    image:
+      postgres
+    networks:
+      - api
+  api:
+    build: .
+    ports:
+      - 8080:8080
+    environment:
+      DB_USERNAME: listings
+      DB_USER_PASSWORD: mysecret
+      DB_URL: jdbc:postgresql://data:5432/listings
+      SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - api
+networks:
+  api:
+    name: api_network
+volumes:
+  pg_data:
