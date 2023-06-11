@@ -265,6 +265,8 @@ mvn clean verify "-Dspring.profiles.active=test-it"
 ## Run the API
 The API requires a postgres instance with an empty database, you can create a new one with the following command:
 
+## Option 1 - Postgres on Docker and API with Maven Spring-boot:run
+
 ### Linux
 ```bash
 export DB_PORT=5556
@@ -290,4 +292,17 @@ docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Admin1234" -p ${Env:DB_PORT}:5432 
 And run the program with the following command:
 ```bash
 mvn spring-boot:run "-Dspring-boot.run.profiles=prod"
+```
+
+## Option 2 - Docker compose
+There's also an option to run the api using the provided `docker-compose.yml`
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+To stop the services
+```bash
+docker compose down
 ```
