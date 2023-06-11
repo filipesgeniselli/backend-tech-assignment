@@ -1,20 +1,26 @@
 package com.filipegeniselli.backendtechassignment;
 
 import com.filipegeniselli.backendtechassignment.dealer.DealerTierLimit;
+import com.filipegeniselli.backendtechassignment.listings.VehicleCondition;
+import com.filipegeniselli.backendtechassignment.listings.VehicleFuelType;
+import com.filipegeniselli.backendtechassignment.listings.VehicleTransmission;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.DirtiesContext;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Stream;
 
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class ListingsControllerTests extends ListingsBaseControllerTest{
 
     @Autowired
@@ -81,7 +87,7 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
                                                                 int pageSize,
                                                                 int expectedPageLength,
                                                                 int expectedTotal) {
-        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("basicDealerRemoveOldListings.json")));
+        String dealerId = extractDealerIdFromLocation(createDealer(getDealerResourceAsStream("premiumDealerRemoveOldListings.json")));
         List<String> listingsList = new ArrayList<>();
         for(int i = 0; i < 30; i++) {
             listingsList.add(createListing(dealerId, getListingsResourceAsStream("newListing.json")));
@@ -134,6 +140,53 @@ class ListingsControllerTests extends ListingsBaseControllerTest{
                 .body("publishedAt", nullValue())
                 .body("removedAt", nullValue())
                 .body("url", endsWith(listingLocation));
+    }
+
+    @Test
+    void createNewListingWithNoVehicle_ShouldReturnBadRequest() {
+        String dealerId = extractDealerIdFromLocation(
+                createDealer(
+                        getDealerResourceAsStream("freeDealerNotRemoveOldListings.json")));
+
+        Map<String, Object> body = new HashMap<>(){{
+            put("condition", "NEW");
+            put("price", "10");
+        }};
+
+        given()
+                .body(body)
+                .contentType(ContentType.JSON)
+                .post("/%s/listings".formatted(dealerId))
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("message", equalTo("The field vehicle is required"));
+    }
+
+    @Test
+    void createNewInvalidListing_ShouldReturnBadRequest() {
+        String dealerId = extractDealerIdFromLocation(
+                createDealer(
+                        getDealerResourceAsStream("freeDealerNotRemoveOldListings.json")));
+
+        Map<String, Object> body = new HashMap<>(){{
+            put("color", "black");
+            put("transmission", "MANUAL");
+        }};
+
+        given()
+                .body(body)
+                .contentType(ContentType.JSON)
+                .post("/%s/listings".formatted(dealerId))
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("message", equalTo("The field vehicle is required" + System.lineSeparator() +
+                        "The field condition is required" + System.lineSeparator() +
+                        "The field price is required and needs to be greater than 0"));
+
     }
 
     @Test

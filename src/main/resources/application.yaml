@@ -1,14 +1,31 @@
 spring:
   datasource:
-    url: "jdbc:postgresql://localhost:5432/backendtechassignment"
-    username: "api"
-    password: "secret"
+    url: jdbc:postgresql://localhost:5432/listings
+    username: api
+    password: secret
     driver-class-name: org.postgresql.Driver
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
 tier-limits:
   free: 3
   basic: 10
   premium: 20
   business: 100
+
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - prod
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_USER_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update

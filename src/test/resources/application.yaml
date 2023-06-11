@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:listings-test
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+tier-limits:
+  free: 2
+  basic: 5
+  premium: 10
+  business: 20
+
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - test-it
+  datasource:
+    url: jdbc:postgresql://localhost:5555/listings-test
+    username: listings
+    password: mysecretpassword
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop

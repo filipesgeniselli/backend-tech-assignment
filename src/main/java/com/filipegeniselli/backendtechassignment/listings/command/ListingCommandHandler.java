@@ -8,13 +8,13 @@ import com.filipegeniselli.backendtechassignment.exception.ConflictException;
 import com.filipegeniselli.backendtechassignment.exception.NotFoundException;
 import com.filipegeniselli.backendtechassignment.listings.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Service
+@Component
 public class ListingCommandHandler implements ListingCommandService {
 
     private final ListingRepository listingRepository;
@@ -49,6 +49,7 @@ public class ListingCommandHandler implements ListingCommandService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
+        listing.checkIsValid();
         listingRepository.save(listing);
 
         return listing.getId();
@@ -72,9 +73,22 @@ public class ListingCommandHandler implements ListingCommandService {
         listing.setMileage(command.mileage());
         listing.setFuelType(command.fuelType());
 
+        listing.checkIsValid();
         listingRepository.save(listing);
     }
 
+    /**
+     * I opted to have the status changed on a different method because
+     * I created a requirement that the listing should be complete before being published.
+     *
+     * If the dealer wants to update any detail of the listing the correct process should be to move the listing to the DRAFT state,
+     * Perform all the changes and publish it again
+     *
+     * If there's a new feature to check all the data before publishing the listing this will assure that the Listing is following the correct workflow
+     * @param dealerId
+     * @param listingId
+     * @param command
+     */
     @Override
     @Transactional
     public void handle(UUID dealerId, UUID listingId, PublishListing command) {

@@ -6,6 +6,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
@@ -149,6 +151,108 @@ class DealerControllerTests extends ListingsBaseControllerTest {
                 .body("tier", equalTo("BUSINESS"))
                 .body("allowRemovingOldListings", equalTo(true))
                 .body("url", endsWithIgnoringCase(location));
+    }
+
+    @Test
+    void createDealerWithInvalidData_ShouldReturnBadRequest() {
+        Map<String, Object> body = new HashMap<>(){{
+            put("invalidName", "invalid name");
+        }};
+
+        given()
+                .body(body)
+                .contentType(ContentType.JSON)
+                .post("/dealer")
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("message", equalTo("The field name is required" + System.lineSeparator() +
+                        "The field tier is required" + System.lineSeparator() +
+                        "The field allowRemovingOldListings is required"));
+    }
+
+    @Test
+    void createDealerWithNoName_ShouldReturnBadRequest() {
+        Map<String, Object> body = new HashMap<>(){{
+            put("tier", "BASIC");
+            put("allowRemovingOldListings", true);
+        }};
+
+        given()
+                .body(body)
+                .contentType(ContentType.JSON)
+                .post("/dealer")
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("message", equalTo("The field name is required"));
+    }
+
+    @Test
+    void createDealerWithNoTier_ShouldReturnBadRequest() {
+        Map<String, Object> body = new HashMap<>(){{
+            put("name", "dealer name");
+            put("allowRemovingOldListings", true);
+        }};
+
+        given()
+                .body(body)
+                .contentType(ContentType.JSON)
+                .post("/dealer")
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("message", equalTo("The field tier is required"));
+    }
+
+    @Test
+    void createDealerWithNoAllowRemovingOldListings_ShouldReturnBadRequest() {
+        Map<String, Object> body = new HashMap<>(){{
+            put("name", "dealer name");
+            put("tier", "BASIC");
+        }};
+
+        given()
+                .body(body)
+                .contentType(ContentType.JSON)
+                .post("/dealer")
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("message", equalTo("The field allowRemovingOldListings is required"));
+    }
+
+    @Test
+    void updateDealerWithInvalidData_ShouldReturnBadRequest() {
+        String location = createDealer(getDealerResourceAsStream("businessDealerNotRemoveOldListings.json"));
+        given()
+                .get(location)
+                .then()
+                .assertThat()
+                .statusCode(200)
+                .body("name", equalTo("Test Business dealer"))
+                .body("tier", equalTo("BUSINESS"))
+                .body("allowRemovingOldListings", equalTo(false))
+                .body("url", endsWithIgnoringCase(location));
+
+        Map<String, Object> body = new HashMap<>(){{
+            put("name", "dealer name");
+            put("tier", "BASIC");
+        }};
+
+        given()
+                .body(body)
+                .contentType(ContentType.JSON)
+                .put(location)
+                .then()
+                .assertThat()
+                .statusCode(400)
+                .body("status", equalTo(400))
+                .body("message", equalTo("The field allowRemovingOldListings is required"));
     }
 
 }

@@ -8,10 +8,10 @@ import com.filipegeniselli.backendtechassignment.dealer.DealerRepository;
 import com.filipegeniselli.backendtechassignment.exception.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Component
+@Service
 public class DealerQueryHandler implements DealerQueryService {
 
     private final DealerRepository dealerRepository;

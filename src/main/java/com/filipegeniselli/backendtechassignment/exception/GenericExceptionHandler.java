@@ -33,9 +33,20 @@ public class GenericExceptionHandler extends ResponseEntityExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<ErrorMessage> handleBadRequestException(BadRequestException exception, WebRequest request) {
         logger.error("Invalid request", exception);
+
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorMessage(HttpStatus.BAD_REQUEST.value(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(Throwable.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ResponseEntity<ErrorMessage> handleThrowable(Throwable exception, WebRequest request) {
+        logger.error("Unhandled exception: ", exception);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorMessage(HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                        "An unexpected error occurred, we're working to fix the issue, please try again later."));
     }
 
 }

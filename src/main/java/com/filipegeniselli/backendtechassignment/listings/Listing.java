@@ -1,13 +1,27 @@
 package com.filipegeniselli.backendtechassignment.listings;
 
 import com.filipegeniselli.backendtechassignment.dealer.Dealer;
+import com.filipegeniselli.backendtechassignment.exception.BadRequestException;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+/**
+ * The Listing entity has the same problems related to Lombok and UUID from the Dealer entity.
+ *
+ * Suggested new features
+ *
+ * - A new entity to store all the details of the listing (Make, model, description)
+ * - A new entity to store communications between the dealer and the customer
+ * - A new status ANALYSIS an intermediary state between DRAFT and PUBLISHED to do all verifications before publishing the listing
+ *
+ */
 @Entity
 @Table
 public class Listing {
@@ -28,6 +42,26 @@ public class Listing {
     private LocalDateTime createdAt;
     private LocalDateTime publishedAt;
     private LocalDateTime removedAt;
+
+    public void checkIsValid() {
+        List<String> errorMessages = new ArrayList<>();
+
+        if (this.vehicle == null || this.vehicle.equals("")) {
+            errorMessages.add("The field vehicle is required");
+        }
+
+        if (this.condition == null) {
+            errorMessages.add("The field condition is required");
+        }
+
+        if (this.price == null || this.price.compareTo(BigDecimal.ZERO) <= 0) {
+            errorMessages.add("The field price is required and needs to be greater than 0");
+        }
+
+        if (!errorMessages.isEmpty()) {
+            throw new BadRequestException(errorMessages.stream().collect(Collectors.joining(System.lineSeparator())));
+        }
+    }
 
     public UUID getId() {
         return id;
